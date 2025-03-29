@@ -21,7 +21,7 @@ class NeighborhoodAggregation(MessagePassing):
         # norm 的形狀為 [E]
         return norm.view(-1, 1) * x_j
     
-class DrBC(torch.nn.Module):
+class DrBC(nn.Module):
     def __init__(self, dim, num_layers):
         super(DrBC, self).__init__()
         self.layer = num_layers
@@ -30,19 +30,20 @@ class DrBC(torch.nn.Module):
         self.decode_mlp = nn.Linear(dim, dim//2, bias=False)
         self.decode_mlp2 = nn.Linear(dim//2, 1, bias=False)
         self.GRU_Cell = nn.GRUCell(dim, dim)
+        self.apply(self.init_weights) 
 
     def forward(self, data, norm):
         z = self.encode(data, norm)
-        y = self.decode(data, z)
-        return y
+        y = self.decode(z)
+        return y.view(-1)
     
     def encode(self, data, norm):
         x, edge_index = data.x, data.edge_index
-
+        # x 的形狀為 [N, 3]
         # 初始化 h，記錄每一層的狀態
         h_list = []
         h_prev = F.relu(self.encode_mlp(x))  # 第一層的初始狀態
-        h_prev = h_prev / torch.norm(h_prev, p=2, dim=1, keepdim=True)  # 歸一化
+        h_prev = F.normalize(h_prev, p=2, dim=1)
         h_list.append(h_prev)  # 記錄第一層的狀態
 
         # 迭代計算每一層的 h
@@ -69,5 +70,19 @@ class DrBC(torch.nn.Module):
     
     def decode(self, z):
         y = F.relu(self.decode_mlp(z))
-        y = F.relu(self.decode_mlp2(y))
+        y = self.decode_mlp2(y)
         return y
+    
+    def init_weights(self, m):
+        if type(m) == nn.Linear:
+            torch.nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                m.bias.data.fill_(0.01)
+        if type(m) == nn.GRUCell:
+            for name, param in m.named_parameters():
+                if 'weight' in name:
+                    torch.nn.init.xavier_uniform_(param)
+                if 'bias' in name:
+                    param.data.fill_(0.01)
+        return m
+    

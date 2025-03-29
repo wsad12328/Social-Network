@@ -4,9 +4,9 @@ import networkx as nx
 from torch_geometric.data import Data
 import torch_geometric.utils as pyg_utils
 
-def Generate_Synthetic():
+def Generate_Synthetic(seed):
     # Generate a synthetic graphG = nx.powerlaw_cluster_graph(n=5000, m=4, p=0.05)
-    G = nx.powerlaw_cluster_graph(n=5000, m=4, p=0.05)
+    G = nx.powerlaw_cluster_graph(n=5000, m=4, p=0.05, seed=seed+100)
     bc_values = ig.Graph.from_networkx(G).betweenness()
     N = len(G.nodes)
     max_bc = (N - 1) * (N - 2) / 2  # 最大可能值
