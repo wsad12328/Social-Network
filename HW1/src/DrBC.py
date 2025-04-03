@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-from torch_geometric.nn import GCNConv, MessagePassing
+from torch_geometric.nn import GCNConv, GATConv, MessagePassing
 
 class NeighborhoodAggregation(MessagePassing):
     def __init__(self):
@@ -14,19 +14,25 @@ class NeighborhoodAggregation(MessagePassing):
         return norm.view(-1, 1) * x_j
 
 class DrBC(nn.Module):
-    def __init__(self, dim, num_layers, aggregate_type='GCN'):
+    def __init__(self, dim, num_layers, aggregate_type='GCN', heads=4):
         super(DrBC, self).__init__()
         self.num_layers = num_layers
         self.aggregate_type = aggregate_type
-        
+
         if aggregate_type == 'GCN':
             self.convs = nn.ModuleList([GCNConv(dim, dim) for _ in range(num_layers)])
+        elif aggregate_type == 'GAT':
+            self.convs = nn.ModuleList([GATConv(dim, dim, heads=heads, concat=False) for _ in range(num_layers)])
         else:
             self.aggr = NeighborhoodAggregation()
-        
+        self.batchnorm_encode = nn.BatchNorm1d(dim)
         self.encode_mlp = nn.Linear(3, dim, bias=False)
+        self.batchnorm_decode = nn.BatchNorm1d(dim // 2)
+        
         self.decode_mlp = nn.Linear(dim, dim // 2, bias=False)
         self.decode_mlp2 = nn.Linear(dim // 2, 1, bias=False)
+        
+        self.gru_cell = nn.GRUCell(dim, dim)
         self.apply(self.init_weights)
 
     def forward(self, data, norm=None):
@@ -37,28 +43,30 @@ class DrBC(nn.Module):
     def encode(self, data, norm=None):
         x, edge_index = data.x, data.edge_index
         h_list = []
-        h = F.relu(self.encode_mlp(x))
-        h = F.normalize(h, p=2, dim=1)
+        h = F.relu(self.batchnorm_encode(self.encode_mlp(x)))
         h_list.append(h)
+
+        prev_h = h
         
-        if self.aggregate_type == 'GCN':
-            for conv in self.convs:
-                h = conv(h, edge_index)
-                h = F.relu(h)
-                h = F.normalize(h, p=2, dim=1)
-                h_list.append(h)
-        else:
-            for _ in range(self.num_layers):
+        for l in range(self.num_layers):
+            if self.aggregate_type == 'GCN':
+                h = self.convs[l](h, edge_index)
+            elif self.aggregate_type == 'GAT':
+                h = self.convs[l](h, edge_index)
+            elif self.aggregate_type == 'sum':
                 h = self.aggr(h, edge_index, norm)
-                h = F.normalize(h, p=2, dim=1)
-                h_list.append(h)
         
-        h_stack = torch.stack(h_list, dim=1)  # [N, num_layers+1, dim]
-        z = h_stack.max(dim=1)[0]  # Max pooling over layers
+            h_list.append(h)
+
+            h = self.gru_cell(h, prev_h)
+            prev_h = h 
+
+        h_stack = torch.stack(h_list, dim=1)
+        z = torch.mean(h_stack, dim=1)
         return z
 
     def decode(self, z):
-        y = F.relu(self.decode_mlp(z))
+        y = F.relu(self.batchnorm_decode(self.decode_mlp(z)))  # Apply LayerNorm
         y = self.decode_mlp2(y)
         return y
     
