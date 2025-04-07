@@ -1,53 +1,17 @@
-##################################################### sum ##########################################################
-python src/test.py --dim 32 --layers 2 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 32 --layers 3 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 32 --layers 4 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 2 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 3 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 4 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 2 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 3 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 4 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 2 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 3 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 4 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 2 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 3 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 4 --aggregate_type sum --test_graphs_min 100000 --test_graphs_max 100000
-# ##################################################### GCN ##########################################################
-python src/test.py --dim 32 --layers 2 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 32 --layers 3 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 32 --layers 4 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 2 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 3 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 4 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 2 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 3 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 4 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 2 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 3 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 4 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 2 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 3 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 4 --aggregate_type GCN --test_graphs_min 100000 --test_graphs_max 100000
-# ##################################################### GAT ##########################################################
-python src/test.py --dim 32 --layers 2 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 32 --layers 3 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 32 --layers 4 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 2 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 3 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 64 --layers 4 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 2 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 3 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 128 --layers 4 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 2 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 3 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 256 --layers 4 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 2 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 3 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
-python src/test.py --dim 512 --layers 4 --aggregate_type GAT --test_graphs_min 100000 --test_graphs_max 100000
+#!/bin/bash
 
+# 檢查是否有輸入兩個參數
+if [ "$#" -ne 2 ]; then
+  echo "Usage: $0 <test_graphs_min> <test_graphs_max>"
+  exit 1
+fi
 
+MIN=$1
+MAX=$2
 
+epoch=(50 100 150 200)
 
-
+for i in "${epoch[@]}"
+do
+  python src/test.py --epochs $i --test_graphs_min $MIN --test_graphs_max $MAX 
+done

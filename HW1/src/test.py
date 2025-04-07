@@ -13,15 +13,17 @@ def get_args():
     parser = argparse.ArgumentParser(description="Train DrBC model for betweenness centrality prediction.")
     parser.add_argument('--num_min', type=int, default=4000, help='Minimum number of nodes in graphs')
     parser.add_argument('--num_max', type=int, default=5000, help='Maximum number of nodes in graphs')
-    parser.add_argument('--dim', type=int, default=256, help='Embedding dimension')
-    parser.add_argument('--layers', type=int, default=3, help='Number of GNN layers')
+    parser.add_argument('--dim', type=int, default=64, help='Embedding dimension')
+    parser.add_argument('--layers', type=int, default=4, help='Number of GNN layers')
     parser.add_argument('--aggregate_type', type=str, default='sum', help='Aggregation type for GNN')
+    parser.add_argument('--epochs', type=int, default=500, help='Number of training epochs')
     parser.add_argument('--model_dir', type=str, default="../Model", help='Directory to save model')
     parser.add_argument('--test_data_path', type=str, default="../Data/Synthetic_Validation", help='Path to validation data')
     parser.add_argument('--output_base', type=str, default="../Result", help='Base directory to save evaluation results')
-    parser.add_argument('--test_graphs_min', type=int, default=50000, help='Minimum number of nodes in test graphs')
-    parser.add_argument('--test_graphs_max', type=int, default=50000, help='Maximum number of nodes in test graphs')
+    parser.add_argument('--test_graphs_min', type=int, default=100000, help='Minimum number of nodes in test graphs')
+    parser.add_argument('--test_graphs_max', type=int, default=100000, help='Maximum number of nodes in test graphs')
     parser.add_argument('--topk_list', type=int, nargs='+', default=[1, 5, 10], help='List of Top K percentages for evaluation')
+    parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay for optimizer')
     return parser.parse_args()
 
 def evaluate_graphs(y_pred, y_true, batch_indices, k_percentages=[1, 5, 10]):
@@ -70,7 +72,7 @@ def main():
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     model_dir = f"{base_dir}/{args.model_dir}/{args.aggregate_type}/"
-    model_path = f"{model_dir}/DrBC_{args.num_min}-{args.num_max}_dim{args.dim}_layers{args.layers}.pth"
+    model_path = f"{model_dir}/epoch_{args.epochs:03}.pth"
 
     model = DrBC(dim=args.dim, num_layers=args.layers, aggregate_type=args.aggregate_type).to(device)
     checkpoint = torch.load(model_path, weights_only=True)
@@ -80,12 +82,13 @@ def main():
 
     test_graphs = torch.load(f"{base_dir}/{args.test_data_path}/{args.test_graphs_min}-{args.test_graphs_max}.pt", weights_only=False)
     print("Loaded test graphs:", len(test_graphs))
-    test_loader = DataLoader(test_graphs, batch_size=32, shuffle=False)
+    test_loader = DataLoader(test_graphs, batch_size=4, shuffle=False)
 
     # Generate output path based on parameters
     output_dir = f"{base_dir}/{args.output_base}/{args.aggregate_type}/"
     os.makedirs(output_dir, exist_ok=True)
-    output_file = f"{output_dir}/{args.test_graphs_min}-{args.test_graphs_max}_dim{args.dim}_layers{args.layers}.csv"
+
+    output_file = f"{output_dir}/{args.test_graphs_min}-{args.test_graphs_max}_epoch_{args.epochs:03}_graphnorm_LR_0.2_150.csv"
     
     # Write results to CSV file
     with open(output_file, mode='w', newline='') as file:
