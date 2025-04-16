@@ -1,4 +1,3 @@
 *.pt
-*.pth
+*.pth   
 *.csv
-*.txt
