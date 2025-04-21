@@ -27,7 +27,7 @@ def main(args):
         os.makedirs(train_dir, exist_ok=True)
         print("Generating training graphs...")
         train_graphs = [Generate_Synthetic(args.num_min, args.num_max, seed + 1000) for seed in tqdm(range(args.train_samples), desc="Generating Training Graphs")]
-        torch.save(train_graphs, os.path.join(train_dir, f"{args.num_min}-{args.num_max}.pt"))
+        torch.save(train_graphs, os.path.join(train_dir, f"{args.num_min}-{args.num_max}_log.pt"))
 
     if "Synthetic" in args.test_dir:
         os.makedirs(test_dir, exist_ok=True)
@@ -42,8 +42,6 @@ def main(args):
             for line in f.readlines():
                 u, v = map(int, line.split())  # Split by space and convert to integers
                 edge_index.append((u, v))
-                
-        # print(edge_index)
 
         y = []
 

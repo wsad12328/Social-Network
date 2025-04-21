@@ -51,8 +51,8 @@ def read_single_graph(edge_file, score_file):
         y[node] = score
 
     # 生成特徵
-    x = Generate_Feature(edge_index, num_nodes)
-    data = Data(x=x, edge_index=edge_index, y=y)
+    node_features = Generate_Feature(edge_index, num_nodes)
+    data = Data(x=node_features, edge_index=edge_index, y=y)
     return data
 
 def load_all_graphs_from_folder(folder_path, num_graphs=30, idx=0):
@@ -99,6 +99,6 @@ if __name__ == "__main__":
     datasets = load_all_datasets(root_path, args.test_dataset, args.num_graphs)
 
     for key in datasets.keys():
-        save_path = os.path.join(root_path, f"{key}.pt")
+        save_path = os.path.join(root_path, f"{key}_log.pt")
         torch.save(datasets[key], save_path)
         print(f"Saved {key} dataset to {save_path}")

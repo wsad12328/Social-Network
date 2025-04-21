@@ -14,7 +14,7 @@ class NeighborhoodAggregation(MessagePassing):
         return norm.view(-1, 1) * x_j
 
 class DrBC(nn.Module):
-    def __init__(self, dim, num_layers, aggregate_type='GCN', heads=4):
+    def __init__(self, dim, num_layers, aggregate_type='sum', heads=4):
         super(DrBC, self).__init__()
         self.num_layers = num_layers
         self.aggregate_type = aggregate_type
@@ -26,7 +26,7 @@ class DrBC(nn.Module):
         else:
             self.aggr = NeighborhoodAggregation()
 
-        self.encode_mlp = nn.Linear(3, dim, bias=False)
+        self.encode_mlp = nn.Linear(6, dim, bias=False)
         
         self.decode_mlp = nn.Linear(dim, dim // 2, bias=False)
         self.decode_mlp2 = nn.Linear(dim // 2, 1, bias=False)
@@ -39,7 +39,7 @@ class DrBC(nn.Module):
 
     def forward(self, data, norm=None):
         z = self.encode(data, norm)
-        y = self.decode(z)
+        y = self.decode(z, data)
         return y.view(-1)
 
     def encode(self, data, norm=None):
@@ -59,11 +59,10 @@ class DrBC(nn.Module):
                 h = self.convs[l](h, edge_index)
             elif self.aggregate_type == 'sum':
                 h = self.aggr(h, edge_index, norm)
-            
-            h_list.append(h)
 
             h = self.gru_cell(h, prev_h) + prev_h
             h = self.graph_norm(h, batch)
+            h_list.append(h)
             prev_h = h
 
         h_stack = torch.stack(h_list, dim=1)
@@ -71,7 +70,7 @@ class DrBC(nn.Module):
         z = torch.sum(h_final, dim=1)
         return z
 
-    def decode(self, z):
+    def decode(self, z, data):
         y = F.leaky_relu(self.decode_mlp(z))
         y = self.dropout(y)
         y = self.decode_mlp2(y)

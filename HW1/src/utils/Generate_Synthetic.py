@@ -11,21 +11,23 @@ def Generate_Synthetic(num_min, num_max, seed):
     torch.manual_seed(seed)
 
     # 隨機生成節點數量
-    num_nodes = np.random.randint(num_max - num_min + 1) + num_min
+    num_nodes = np.random.randint(num_min, num_max + 1)
     G = nx.powerlaw_cluster_graph(n=num_nodes, m=4, p=0.05, seed=seed)
 
     # 計算 Betweenness Centrality
     bc_values = ig.Graph.from_networkx(G).betweenness()
-    # 將 bc 值轉換為 torch tensor
+    # 將 bc 值轉換為 torch tensor並做正規化
     N = len(G.nodes)
-    max_bc = (N - 1) * (N - 2) / 2 
+    max_bc = (N - 1) * (N - 2) / 2
     bc_values = torch.tensor(bc_values) / max_bc
 
-    # Generate features
-    features = Generate_Feature(G)
-
-    # 節點連接資訊（從網絡圖中提取）
+    # Convert NetworkX graph to PyG edge_index
     edge_index = pyg_utils.from_networkx(G).edge_index
-    # 將手動特徵和 bc 值打包進 Data
-    SyntheticData = Data(x=features, edge_index=edge_index, y=bc_values)
-    return SyntheticData
+
+    # Generate node features using your function
+    node_features = Generate_Feature(edge_index, num_nodes)
+
+    # Create the PyG data object
+    synthetic_data = Data(x=node_features, edge_index=edge_index, y=bc_values)
+
+    return synthetic_data

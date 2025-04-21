@@ -14,14 +14,13 @@ def get_args():
     parser.add_argument('--num_min', type=int, default=4000, help='Minimum number of nodes in graphs')
     parser.add_argument('--num_max', type=int, default=5000, help='Maximum number of nodes in graphs')
     parser.add_argument('--dim', type=int, default=64, help='Embedding dimension')
-    parser.add_argument('--layers', type=int, default=5, help='Number of GNN layers')
+    parser.add_argument('--layers', type=int, default=3, help='Number of GNN layers')
     parser.add_argument('--aggregate_type', type=str, default='sum', help='Aggregation type for GNN')
     parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')
     parser.add_argument('--model_dir', type=str, default="../Model", help='Directory to save model')
     parser.add_argument('--test_data_path', type=str, default="../DrBC_Data/Synthetic", help='Path to validation data')
+    parser.add_argument('--test_dataset', type=str, default="5000", help='Dataset name for testing')
     parser.add_argument('--output_base', type=str, default="../Result", help='Base directory to save evaluation results')
-    parser.add_argument('--test_graphs_min', type=int, default=100000, help='Minimum number of nodes in test graphs')
-    parser.add_argument('--test_graphs_max', type=int, default=100000, help='Maximum number of nodes in test graphs')
     parser.add_argument('--topk_list', type=int, nargs='+', default=[1, 5, 10], help='List of Top K percentages for evaluation')
     parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay for optimizer')
     return parser.parse_args()
@@ -71,46 +70,34 @@ def main():
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     model_dir = f"{base_dir}/{args.model_dir}/{args.aggregate_type}"
-    model_path = f"{model_dir}/{args.num_min}_{args.num_max}.pth"
+    model_path = f"{model_dir}/{args.num_min}_{args.num_max}_hard_log.pth"
 
     model = DrBC(dim=args.dim, num_layers=args.layers, aggregate_type=args.aggregate_type)
     state_dict = torch.load(model_path, map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
     model.eval()
     print("Model loaded successfully.")
-    test_graphs = None
-    if "Synthetic" in args.test_data_path:
-        test_graphs = torch.load(f"{base_dir}/{args.test_data_path}/{args.test_graphs_min}.pt", weights_only=False)
-
-    elif 'Real' in args.test_data_path:
-        test_graphs = torch.load(f"{base_dir}/{args.test_data_path}/com-youtube.pt", weights_only=False)
+    test_graphs = torch.load(f"{base_dir}/{args.test_data_path}/{args.test_dataset}_log.pt", weights_only=False)
 
     test_loader = DataLoader(test_graphs, batch_size=1, shuffle=False)
 
     # Generate output path based on parameters
-    if "Synthetic" in args.test_data_path:
-        output_dir = f"{base_dir}/{args.output_base}/test_{args.test_graphs_min}"
-    elif 'Real' in args.test_data_path:
-        output_dir = f"{base_dir}/{args.output_base}/com-youtube"
+    output_dir = f"{base_dir}/{args.output_base}/{args.test_dataset}"
 
     os.makedirs(output_dir, exist_ok=True)
 
-    if "Synthetic" in args.test_data_path:
-        output_file = f"{output_dir}/{args.num_min}-{args.num_max}.csv"
-    elif 'Real' in args.test_data_path:
-        output_file = f"{output_dir}/com-youtube.csv"
+    output_file = f"{output_dir}/{args.num_min}_{args.num_max}_hard_log.csv"
     
     # Write results to CSV file
     with open(output_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Top-K%', 'Accuracy', 'Kendall\'s Tau'])  # CSV 標題行
         
-        total_top_k_acc_dict = {k: 0 for k in args.topk_list}
-        total_tau = 0
-        num_batches = 0
+        top_k_acc_records = {k: [] for k in args.topk_list}
+        tau_records = []
+
         with torch.no_grad():
             for batch in tqdm(test_loader):
-                # batch = batch
                 row, col = batch.edge_index
                 deg = degree(row, batch.x.size(0), dtype=batch.x.dtype)
                 deg_inv_sqrt = 1.0 / torch.sqrt(deg + 1)
@@ -118,19 +105,14 @@ def main():
 
                 pred_bc = model(batch, norm)
                 top_k_acc_dict, tau = evaluate_graphs(pred_bc, batch.y, batch.batch, k_percentages=args.topk_list)
-                
+
                 for k in args.topk_list:
-                    total_top_k_acc_dict[k] += top_k_acc_dict[k]
-                total_tau += tau
-                num_batches += 1
+                    top_k_acc_records[k].append(top_k_acc_dict[k])
+                tau_records.append(tau)
 
-        # Calculate average results for each Top-K
-        avg_top_k_acc_dict = {k: total_top_k_acc_dict[k] / num_batches for k in args.topk_list}
-        avg_tau = total_tau / num_batches
-
-        # Write average results to CSV
         for k in args.topk_list:
-            writer.writerow([f"Top-{k}%", avg_top_k_acc_dict[k], avg_tau])
+            acc_array = np.array(top_k_acc_records[k])
+            writer.writerow([f"Top-{k}%", f"{acc_array.mean():.4f} ± {acc_array.std():.4f}", f"{np.mean(tau_records):.4f} ± {np.std(tau_records):.4f}"])
 
     print(f"Evaluation results saved to {output_file}")
 
