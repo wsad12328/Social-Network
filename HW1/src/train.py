@@ -9,6 +9,8 @@ from DrBC import DrBC
 from tqdm import tqdm
 import os
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 def get_args():
     parser = argparse.ArgumentParser(description="Train DrBC model for betweenness centrality prediction.")
     parser.add_argument('--num_min', type=int, default=4000, help='Minimum number of nodes in graphs')
@@ -24,16 +26,41 @@ def get_args():
     parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay for optimizer')
     return parser.parse_args()
 
-def compute_grad_norms(params, grads):
-    """Compute L2 norm of a list of gradient tensors."""
-    total = torch.tensor(0.0, device=grads[0].device)
-    for g in grads:
-        total = total + (g.detach()**2).sum()
-    return torch.sqrt(total)
+def compute_ranking_loss(pred_diff, true_diff, mode='hard', margin=0):
+    """計算 ranking loss，支持 'hard' 和 'margin' 模式。
+    
+    Args:
+        pred_diff (Tensor): 預測的差距（u, v）。
+        true_diff (Tensor): 真實的差距（u, v）。
+        mode (str): 訓練模式，'hard' 為 binary loss，'margin' 為 margin ranking loss。
+        margin (float): margin ranking loss 的 margin 值。
+    Returns:
+        Tensor: 計算後的 loss。
+    """
+    if mode == 'hard':
+        # Hard ranking loss
+        hard_label = (true_diff > 0).float()  # 大於則為 1，否則為 0
+        return F.binary_cross_entropy_with_logits(pred_diff, hard_label)
+    
+    elif mode == 'margin':
+        # Margin ranking loss   
+        target = (true_diff > 0).float() * 2 - 1  # +1 / -1
+        margin = true_diff.abs()
+
+        sorted_idx = torch.argsort(margin)
+        rank = torch.empty_like(margin)
+        rank[sorted_idx] = torch.arange(len(margin), dtype=margin.dtype, device=margin.device) + 1
+        N = margin.size(0)
+        rank = torch.sqrt((N*0.5 - rank).abs() + 1)
+
+        loss = torch.clamp(margin*rank - pred_diff * target, min=0)  # margin ranking loss
+        return loss.mean()
+
+    else:
+        raise ValueError("Invalid mode. Choose either 'hard' or 'margin'.")
 
 def main():
     args = get_args()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Device:", device)
 
     torch.manual_seed(0)
@@ -43,7 +70,7 @@ def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     save_dir = f"{base_dir}/{args.save_dir}/{args.aggregate_type}/"
     os.makedirs(save_dir, exist_ok=True)
-    data_path = os.path.join(base_dir, f"{args.data_path}/{args.num_min}-{args.num_max}_log.pt")
+    data_path = os.path.join(base_dir, f"{args.data_path}/{args.num_min}-{args.num_max}.pt")
 
     # Initialize the model
     model = DrBC(dim=args.dim, num_layers=args.layers, aggregate_type=args.aggregate_type).to(device)
@@ -99,14 +126,11 @@ def main():
 
                 idx = torch.randint(0, len(node_indices), (num_pairs, 2))
                 u, v = node_indices[idx[:, 0]], node_indices[idx[:, 1]]
-                Pred_diff = scores[u] - scores[v]
-                True_diff = real_bc[u] - real_bc[v]
-                hard_label = (True_diff > 0).float()
+                pred_diff = scores[u] - scores[v]
+                true_diff = real_bc[u] - real_bc[v]
 
-                # 用 hard label 計算 loss
-                loss = F.binary_cross_entropy_with_logits(Pred_diff, hard_label)
-
-
+                # Calculate ranking loss using selected mode
+                loss = compute_ranking_loss(pred_diff, true_diff)
                 ranking_losses.append(loss)
 
             if len(ranking_losses) > 0:
@@ -118,18 +142,19 @@ def main():
 
             optimizer.step()
             avg_loss += ranking_loss.item()
-        
+
         avg_loss /= len(loader)
 
-        # 更新學習率
+        # Update learning rate
         scheduler.step()
         print(f"Epoch {epoch+1}/{args.epochs}, Loss: {avg_loss:.4f}")
 
     # Save the model
-    model_save_path = os.path.join(save_dir, f"{args.num_min}_{args.num_max}_hard_log.pth")
+    model_save_path = os.path.join(save_dir, f"{args.dim}_{args.layers}.pth")
     torch.save(model.state_dict(), model_save_path)
     print(f"Model saved to {model_save_path}")
     print("Training complete.")
+
 
 
 if __name__ == "__main__":

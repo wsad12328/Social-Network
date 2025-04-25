@@ -1,8 +1,6 @@
 import os
 import torch
 import argparse
-import networkx as nx
-from torch_geometric.utils import from_networkx
 from preprocessing import Generate_Feature
 from torch_geometric.data import Data
 
@@ -52,6 +50,7 @@ def read_single_graph(edge_file, score_file):
 
     # 生成特徵
     node_features = Generate_Feature(edge_index, num_nodes)
+
     data = Data(x=node_features, edge_index=edge_index, y=y)
     return data
 
@@ -99,6 +98,6 @@ if __name__ == "__main__":
     datasets = load_all_datasets(root_path, args.test_dataset, args.num_graphs)
 
     for key in datasets.keys():
-        save_path = os.path.join(root_path, f"{key}_log.pt")
+        save_path = os.path.join(root_path, f"{key}.pt")
         torch.save(datasets[key], save_path)
         print(f"Saved {key} dataset to {save_path}")

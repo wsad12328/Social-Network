@@ -66,18 +66,16 @@ def evaluate_graphs(y_pred, y_true, batch_indices, k_percentages=[1, 5, 10]):
 def main():
     args = get_args()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print("Device:", device)
-
     base_dir = os.path.dirname(os.path.abspath(__file__))
     model_dir = f"{base_dir}/{args.model_dir}/{args.aggregate_type}"
-    model_path = f"{model_dir}/{args.num_min}_{args.num_max}_hard_log.pth"
+    model_path = f"{model_dir}/{args.dim}_{args.layers}.pth"
 
     model = DrBC(dim=args.dim, num_layers=args.layers, aggregate_type=args.aggregate_type)
     state_dict = torch.load(model_path, map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
     model.eval()
     print("Model loaded successfully.")
-    test_graphs = torch.load(f"{base_dir}/{args.test_data_path}/{args.test_dataset}_log.pt", weights_only=False)
+    test_graphs = torch.load(f"{base_dir}/{args.test_data_path}/{args.test_dataset}.pt", weights_only=False)
 
     test_loader = DataLoader(test_graphs, batch_size=1, shuffle=False)
 
@@ -86,7 +84,7 @@ def main():
 
     os.makedirs(output_dir, exist_ok=True)
 
-    output_file = f"{output_dir}/{args.num_min}_{args.num_max}_hard_log.csv"
+    output_file = f"{output_dir}/{args.aggregate_type}_{args.dim}_{args.layers}.csv"
     
     # Write results to CSV file
     with open(output_file, mode='w', newline='') as file:
